@@ -1,35 +1,34 @@
 <?php
-// Enable error reporting for debugging (disable in production)
-ini_set('display_errors', 0);
-error_reporting(0);
-
 // Only accept POST requests
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
     die('Method not allowed');
 }
 
-// Get the submitted code from form input
+// Get the submitted code from the form
 $submittedCode = $_POST['code'] ?? '';
 
-// Retrieve the correct code from environment variable
-$correctCode = getenv('SECRET_CODE'); // Set this in Render dashboard
-
+// --- IMPORTANT: These are read from Render Environment Variables ---
+$correctCode = getenv('SECRET_CODE');
 $destinationUrl = getenv('DESTINATION_URL');
-if (!$destinationUrl) {
-    $destinationUrl = 'https://jovrin.digital/private';
+// -----------------------------------------------------------------
+
+// Basic validation
+if (!$correctCode || !$destinationUrl) {
+    error_log("Server misconfiguration: Missing SECRET_CODE or DESTINATION_URL");
+    showError("Server configuration error.");
+    exit;
 }
 
-// Validate code (4 digits)
+// Validate code format (4 digits)
 if (!preg_match('/^\d{4}$/', $submittedCode)) {
-    // Invalid format – show error page
     showError('Invalid code format. Please enter exactly 4 digits.');
     exit;
 }
 
-// Constant-time comparison to prevent timing attacks
+// Securely compare the codes
 if (hash_equals($correctCode, $submittedCode)) {
-    // Code correct – redirect to destination
+    // Code is correct! Redirect the user to the hidden destination.
     header("Location: " . $destinationUrl, true, 302);
     exit;
 } else {
@@ -39,7 +38,7 @@ if (hash_equals($correctCode, $submittedCode)) {
 }
 
 /**
- * Display a simple error page and return to the gateway
+ * Displays a simple error page and a link to go back.
  */
 function showError($message) {
     ?>
